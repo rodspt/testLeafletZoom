@@ -1,0 +1,14 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#__next {
+  height: 100%;
+}
+
+.leaflet-container {
+  height: 100vh !important;
+  width: 100vw !important;
+}
