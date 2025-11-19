@@ -184,24 +184,6 @@ export default function Map() {
   };
 
   const onEachMunicipio = (feature: any, layer: any) => {
-    layer.on({
-      click: () => {
-        console.log('Município clicado:', feature.properties);
-        if (feature.properties.type === 'municipio') {
-          setSelectedMunicipio(feature.properties.id);
-
-          if (mapInstance) {
-            const bounds = layer.getBounds();
-            mapInstance.fitBounds(bounds, { padding: [50, 50] });
-          }
-
-          if (currentZoom >= 9) {
-            loadImoveis(feature.properties.id);
-          }
-        }
-      },
-    });
-
     layer.bindPopup(`
       <strong>${feature.properties.name}</strong><br/>
       Quantidade: ${feature.properties.quantidade || 0}
@@ -352,6 +334,22 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
                       weight={2}
                       opacity={1}
                       fillOpacity={0.8}
+                      eventHandlers={{
+                        click: () => {
+                          console.log('Tooltip do município clicado:', feature.properties);
+                          setSelectedMunicipio(feature.properties.id);
+
+                          if (mapInstance) {
+                            const center: [number, number] = [
+                              feature.properties.centroid[1],
+                              feature.properties.centroid[0]
+                            ];
+                            mapInstance.setView(center, 11);
+                          }
+
+                          loadImoveis(feature.properties.id);
+                        }
+                      }}
                     >
                       <Tooltip permanent direction="top" opacity={1}>
                         <strong>{feature.properties.name}</strong><br/>
