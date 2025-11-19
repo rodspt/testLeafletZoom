@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getEstados, getMunicipios, getImoveis, FeatureCollection } from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
@@ -237,7 +237,7 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
 
 <MapContainer
   center={[-14.235, -51.9253]}  // Brazil center lat,lng
-  zoom={4}                     // zoom level to show whole country
+  zoom={5}                     // zoom level to show whole country
   style={{ height: '100%', width: '100%' }}
 >
         <TileLayer
@@ -272,10 +272,10 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
                     opacity={1}
                     fillOpacity={0.8}
                   >
-                    <Popup>
+                     <Tooltip permanent direction="top" opacity={1}>
                       <strong>{feature.properties.name}</strong><br/>
                       Quantidade: {feature.properties.quantidade || 0}
-                    </Popup>
+                    </Tooltip>
                   </CircleMarker>
                 );
               }
@@ -293,27 +293,27 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
               onEachFeature={onEachMunicipio}
             />
             {municipios.features.map((feature: Feature) => {
-              if (feature.properties.centroid) {
-                return (
-                  <CircleMarker
-                    key={`centroid-mun-${feature.properties.id}`}
-                    center={[feature.properties.centroid[1], feature.properties.centroid[0]]}
-                    radius={8}
-                    fillColor="orange"
-                    color="white"
-                    weight={2}
-                    opacity={1}
-                    fillOpacity={0.8}
-                  >
-                    <Popup>
-                      <strong>{feature.properties.name}</strong><br/>
-                      Quantidade: {feature.properties.quantidade || 0}
-                    </Popup>
-                  </CircleMarker>
-                );
-              }
-              return null;
-            })}
+                if (feature.properties.centroid) {
+                  return (
+                    <CircleMarker
+                      key={`centroid-mun-${feature.properties.id}`}
+                      center={[feature.properties.centroid[1], feature.properties.centroid[0]]}
+                      radius={8}
+                      fillColor="orange"
+                      color="white"
+                      weight={2}
+                      opacity={1}
+                      fillOpacity={0.8}
+                    >
+                      <Tooltip permanent direction="top" opacity={1}>
+                        <strong>{feature.properties.name}</strong><br/>
+                        Quantidade: {feature.properties.quantidade || 0}
+                      </Tooltip>
+                    </CircleMarker>
+                  );
+                }
+                return null;
+              })}
           </>
         )}
 
