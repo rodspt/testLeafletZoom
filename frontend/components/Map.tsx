@@ -26,14 +26,22 @@ interface Feature {
   geometry: any;
 }
 
-function MapController({ 
-  onZoomEnd, 
-  currentLevel 
-}: { 
+function MapController({
+  onZoomEnd,
+  currentLevel,
+  onMapReady
+}: {
   onZoomEnd: (zoom: number) => void;
   currentLevel: string;
+  onMapReady?: (map: L.Map) => void;
 }) {
   const map = useMap();
+
+  useEffect(() => {
+    if (onMapReady) {
+      onMapReady(map);
+    }
+  }, [map, onMapReady]);
 
   useEffect(() => {
     const handleZoomEnd = () => {
@@ -59,6 +67,8 @@ export default function Map() {
   const [selectedMunicipio, setSelectedMunicipio] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(5);
 
   useEffect(() => {
     setMounted(true);
@@ -78,7 +88,7 @@ export default function Map() {
       console.log('=== DADOS RECEBIDOS ===');
       console.log('Total de features:', data.features.length);
       console.log('Primeira feature completa:', JSON.stringify(data.features[0], null, 2));
-      
+
       if (data.features[0]?.geometry?.coordinates) {
   const coords = data.features[0].geometry.coordinates[0];
   console.log('Primeiras coordenadas:', coords.slice(0, 5));
@@ -142,18 +152,31 @@ export default function Map() {
 
   const handleZoomEnd = (zoom: number) => {
     console.log('Zoom atual:', zoom);
+    setCurrentZoom(zoom);
+
+    if (zoom >= 7 && currentLevel === 'estado' && selectedEstado && mapInstance) {
+      console.log('Zoom >= 7 detectado, carregando municípios do estado:', selectedEstado);
+      loadMunicipios(selectedEstado);
+    } else if (zoom < 7 && currentLevel === 'municipio') {
+      console.log('Zoom < 7 detectado, voltando para estados');
+      setCurrentLevel('estado');
+      setMunicipios(null);
+      setImoveis(null);
+    } else if (zoom >= 9 && currentLevel === 'municipio' && selectedMunicipio && mapInstance) {
+      console.log('Zoom >= 9 detectado, carregando imóveis do município:', selectedMunicipio);
+      loadImoveis(selectedMunicipio);
+    } else if (zoom < 9 && currentLevel === 'imovel' && selectedEstado) {
+      console.log('Zoom < 9 detectado, voltando para municípios');
+      setCurrentLevel('municipio');
+      setImoveis(null);
+    }
+  };
+
+  const handleMapReady = (map: L.Map) => {
+    setMapInstance(map);
   };
 
   const onEachEstado = (feature: any, layer: any) => {
-    layer.on({
-      click: () => {
-        console.log('Estado clicado:', feature.properties);
-        if (feature.properties.type === 'estado') {
-          loadMunicipios(feature.properties.id);
-        }
-      },
-    });
-
     layer.bindPopup(`
       <strong>${feature.properties.name}</strong><br/>
       Quantidade: ${feature.properties.quantidade || 0}
@@ -165,7 +188,16 @@ export default function Map() {
       click: () => {
         console.log('Município clicado:', feature.properties);
         if (feature.properties.type === 'municipio') {
-          loadImoveis(feature.properties.id);
+          setSelectedMunicipio(feature.properties.id);
+
+          if (mapInstance) {
+            const bounds = layer.getBounds();
+            mapInstance.fitBounds(bounds, { padding: [50, 50] });
+          }
+
+          if (currentZoom >= 9) {
+            loadImoveis(feature.properties.id);
+          }
         }
       },
     });
@@ -221,13 +253,13 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
           {error}
         </div>
       )}
-      
+
       <div className="absolute top-4 left-4 z-[1000] bg-white px-4 py-2 rounded shadow">
         <div className="text-sm font-semibold">Nível: {currentLevel}</div>
         {selectedEstado && <div className="text-xs">Estado ID: {selectedEstado}</div>}
         {selectedMunicipio && <div className="text-xs">Município ID: {selectedMunicipio}</div>}
         <div className="text-xs">Features: {estados?.features.length || 0}</div>
-        <button 
+        <button
           onClick={loadEstados}
           className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
         >
@@ -245,7 +277,7 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <MapController onZoomEnd={handleZoomEnd} currentLevel={currentLevel} />
+        <MapController onZoomEnd={handleZoomEnd} currentLevel={currentLevel} onMapReady={handleMapReady} />
 
         {estados && currentLevel === 'estado' && estados.features.length > 0 && (
           <>
@@ -271,6 +303,22 @@ console.log('Condição de renderização:', estados && currentLevel === 'estado
                     weight={2}
                     opacity={1}
                     fillOpacity={0.8}
+                    eventHandlers={{
+                      click: () => {
+                        console.log('Tooltip do estado clicado:', feature.properties);
+                        setSelectedEstado(feature.properties.id);
+
+                        if (mapInstance) {
+                          const center: [number, number] = [
+                            feature.properties.centroid[1],
+                            feature.properties.centroid[0]
+                          ];
+                          mapInstance.setView(center, 8);
+                        }
+
+                        loadMunicipios(feature.properties.id);
+                      }
+                    }}
                   >
                      <Tooltip permanent direction="top" opacity={1}>
                       <strong>{feature.properties.name}</strong><br/>
